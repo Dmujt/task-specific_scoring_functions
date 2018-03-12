@@ -18,42 +18,42 @@ def parse_and_process_args():
 
     parser.add_argument('--sfname', required=True,
         choices = ['BT-Score', 'BT-Dock', 'BT-Screen',
-                   'RF-Score', 'X-Score'], 
-        help = """Enter the name of the scoring function you would like 
+                   'RF-Score', 'X-Score'],
+        help = """Enter the name of the scoring function you would like
                   to train and test.""",
         type = str)
     parser.add_argument('--task', required=True,
-        choices = ['score', 'dock', 'screen'], 
-        help = """Choose the task for which you would like 
+        choices = ['score', 'dock', 'screen'],
+        help = """Choose the task for which you would like
                   to train and test the scoring function.""",
         type = str)
-    parser.add_argument('--predictions_out_fname', required = False, 
+    parser.add_argument('--predictions_out_fname', required = False,
         default=None,
-        help = """File name to which the PREDICTIONS of 
-                  of the task-specific SF are saved.  
+        help = """File name to which the PREDICTIONS of
+                  of the task-specific SF are saved.
                   """,
         type = str)
-    parser.add_argument('--performance_out_fname', required = False, 
+    parser.add_argument('--performance_out_fname', required = False,
         default=None,
-        help = """File name to which the PERFROMANCE 
-                  statistics of the task-specific SF are saved.    
+        help = """File name to which the PERFROMANCE
+                  statistics of the task-specific SF are saved.
                   """,
         type = str)
 
-    parser.add_argument('--n_cpus', required = False,  
+    parser.add_argument('--n_cpus', required = False,
         default=None,
         help = """The number of CPU cores to use. All CPU cores will
-                  be used if it was not assigned.    
+                  be used if it was not assigned.
                   """,
         type = int)
     parser.add_argument("--verbose", help="increase output verbosity",
                         action="store_true")
     args = parser.parse_args()
     if args.predictions_out_fname is None:
-        args.predictions_out_fname = os.path.join('data', 'output', args.task, 
+        args.predictions_out_fname = os.path.join('data', 'output', args.task,
                                                   args.sfname + '_predictions.csv')
     if args.performance_out_fname is None:
-        args.performance_out_fname = os.path.join('data', 'output', args.task, 
+        args.performance_out_fname = os.path.join('data', 'output', args.task,
                                                   args.sfname + '_performance.csv')
     return args
 #-------------------------------------------------------------------------------
@@ -64,8 +64,8 @@ def get_ba_data(tr_df, task):
     data. In the data frame tr_df, valid binding affinity values for the
     docking task are associated with ligand poses whose RMSD = 0,
     which are essentially the native conformations ('label' == 0). The rows
-    with BA data of positive values are the actual active ligands for 
-    the screening task ('label' > 0).  
+    with BA data of positive values are the actual active ligands for
+    the screening task ('label' > 0).
     """
     if task == 'dock':
       tr_df = tr_df[tr_df['label']==0].copy()
@@ -86,30 +86,36 @@ def main():
       error_msg = 'ERROR: Scoring function %s is incompatible with the %sING task'
       print(error_msg%(sfname.upper(), task.upper()))
       print('ABORTING.')
-      sys.exit() 
+      sys.exit()
 
-
+      # set descriptors based on sf selection
     if sfname in ['bt-score', 'bt-screen', 'bt-dock']:
       descriptor_sets = ['xscore', 'affiscore', 'rfscore', 'gold',
-                        'repast', 'smina', 'chemgauss', 'autodock41', 
-                        'ligscore', 'dsx', 'cyscore', 'padel', 
+                        'repast', 'smina', 'chemgauss', 'autodock41',
+                        'ligscore', 'dsx', 'cyscore', 'padel',
                         'nnscore', 'retest', 'ecfp', 'dpocket']
     elif sfname == 'rf-score':
       descriptor_sets = ['rfscore']
     elif sfname == 'x-score':
-      descriptor_sets = ['xscore'] 
+      descriptor_sets = ['xscore']
     rem_y = sfname in ['rf-score', 'x-score']
-    
+
+    #params for BDT
     model_params = {'n_trees': 3000, 'depth': 10,
                     'eta': 0.01, 'l_rate': 0.01}
-    
+
     tr_dpath = os.path.join('data', 'input', task, 'primary-train')
     ts_dpath = os.path.join('data', 'input', task, 'core-test')
 
-    train, ftrs_formula = read_plc_data(task, descriptor_sets=descriptor_sets, 
+    # TRAIN
+    train, ftrs_formula = read_plc_data(task, descriptor_sets=descriptor_sets,
                                         rem_y=rem_y, data_path=tr_dpath,
                                         verbose=args.verbose)
-    test, ftrs_formula = read_plc_data(task, descriptor_sets=descriptor_sets, 
+
+    print(train)
+
+    #TEST
+    test, ftrs_formula = read_plc_data(task, descriptor_sets=descriptor_sets,
                                        rem_y=rem_y, data_path=ts_dpath,
                                        verbose=args.verbose)
     if ((sfname in ['rf-score', 'x-score'])
@@ -117,6 +123,7 @@ def main():
       train = get_ba_data(train, task)
     n_cpus = multiprocessing.cpu_count() if args.n_cpus is None else args.n_cpus
     model_params = {'n_cpus': n_cpus}
+
     predictions, performance = train_test_model(task, sfname, train, test, model_params)
     print('\nPerformance of %s on the %sing task:'%(args.sfname, args.task))
     print(performance.to_string(index=False))
@@ -128,7 +135,6 @@ def main():
         if args.verbose:
           print('Writing performance statistics to ' + perf_ofname)
         performance.to_csv(perf_ofname, index=False)
+
 if __name__== '__main__':
     main()
-
-

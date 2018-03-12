@@ -9,11 +9,15 @@ from scipy.stats import spearmanr
 from vs_metrics import compute_docking_power, compute_screening_power
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn import svm
+from sklearn.neighbors import NearestNeighbors
+
 import timeit
 import random
 #-------------------------------------------------------------------------------
 def train_test_model(task, sf_name, tr_d, ts_d, model_params):
     pred_task = 'classification' if sf_name == 'bt-screen' else 'regression'
+
     tr_d = shuffle_data(tr_d, sf_name)
     tr_grp_id = tr_d['grp_ids'].values
     tr_clstr_id = tr_d['clstr_ids'].values
@@ -44,30 +48,30 @@ def train_test_model(task, sf_name, tr_d, ts_d, model_params):
         RpAuc, RsTpr, SdTnr, RmseAcc = cls_metrics(ts_y, ts_p, ts_p_proba)
     else:
         RpAuc, RsTpr, SdTnr, RmseAcc = reg_metrics(ts_y, ts_p)
-    
+
     dsizes = [tr_x.shape[0], ts_x.shape[0], tr_x.shape[1]]
-    predictions_df['predicted_label'] = ts_p 
+    predictions_df['predicted_label'] = ts_p
     predictions_df.columns = ['complex_id', 'true_label', 'predicted_label']
     perf_df = None
     if task == 'score':
         performance = [RpAuc, RsTpr, SdTnr, RmseAcc]
         #print('Rp = %.3f, Rs = %.3f, SD = %.3f, RMSE = %.3f'%(RpAuc, RsTpr, SdTnr, RmseAcc))
-        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors', 
+        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors',
                                         'Rp', 'Rs', 'SD', 'RMSE'])
         perf_df.loc[0] =  dsizes + performance
     elif task == 'dock':
         is_decreasing = not is_task_specific(task, sf_name)
-        performance = compute_docking_power(ts_grp_id, ts_y, ts_p, 
+        performance = compute_docking_power(ts_grp_id, ts_y, ts_p,
                                             decreasing=is_decreasing)
         # metrics=c('dock_S21','dock_S22','dock_S23')
-        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors', 
+        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors',
                                      'S21', 'S22', 'S23'])
         perf_df.loc[0] =  dsizes + [performance[1], performance[4], performance[5]]
     elif task == 'screen':
-        performance = compute_screening_power(ts_grp_id, true_labels=ts_y, 
-                                             pred_labels=ts_p_proba, 
+        performance = compute_screening_power(ts_grp_id, true_labels=ts_y,
+                                             pred_labels=ts_p_proba,
                                              decreasing=True)
-        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors', 
+        perf_df = pd.DataFrame(columns=['N_Training', 'N_Test', 'N_Descriptors',
                                   'EF1', 'EF5', 'EF10'])
         perf_df.loc[0] =  dsizes + performance[0:3]
     if perf_df is not None:
@@ -81,7 +85,7 @@ def shuffle_data(train, sfname):
     It was part of another pipeline that has
     more features than this mini-project.
     We have not replaced it because we wanted to
-    generate the same random samples we used in 
+    generate the same random samples we used in
     our paper. Otherwise, we could replace it with
     one line of code.
     """
@@ -122,14 +126,14 @@ def train_xgb(model_params, tr_x, tr_y, pred_task):
                  'learning_rate':0.03, 'gamma':0, # for scoring s = .6, eta =.025, m.d. = 10, learning_rate = 0.02
                  #'bst:colsample_bytree':0.75,
                  'bst:colsample_bylevel':0.75,
-                 'bst:subsample':subsample, 'silent':1, 
+                 'bst:subsample':subsample, 'silent':1,
                  'nthread':model_params['n_cpus']}
     else:
         param = {'bst:max_depth':10, 'bst:eta':0.035, # for docking s = .3, eta =.035, m.d. = 5, learning_rate = 0.05
                  'learning_rate':0.02, 'gamma':0, # for scoring s = .6, eta =.025, m.d. = 10, learning_rate = 0.02
                  #'bst:colsample_bytree':0.75,
                  'bst:colsample_bylevel':0.75,
-                 'bst:subsample':subsample, 'silent':1, 
+                 'bst:subsample':subsample, 'silent':1,
                  'nthread':model_params['n_cpus']}
 
     if pred_task == 'regression':
@@ -146,6 +150,8 @@ def train_sk_lm(model_params, tr_x, tr_y):
     model = LinearRegression()
     model.fit(tr_x, tr_y.ravel())
     return model
+def train_sk_svm(model_params, tr_x, tr_y):
+    model = svm.SVC()
 #-------------------------------------------------------------------------------
 def train_sk_rf(model_params, tr_x, tr_y):
     n_tr_x = tr_x.shape[0]
@@ -154,13 +160,13 @@ def train_sk_rf(model_params, tr_x, tr_y):
     n_cpus = model_params['n_cpus']
     try:
         # Version 0.18.1 takes in the subsample parameter
-        model = RandomForestRegressor(n_estimators=3000, max_depth=None, 
+        model = RandomForestRegressor(n_estimators=3000, max_depth=None,
                                       subsample=subsample,
                                       random_state=0, n_jobs=n_cpus, oob_score=False,
                                       verbose=0)
     except:
         # Version 0.19 and higher does not take the subsample parameter
-        model = RandomForestRegressor(n_estimators=3000, max_depth=None, 
+        model = RandomForestRegressor(n_estimators=3000, max_depth=None,
                               random_state=0, n_jobs=n_cpus, oob_score=False,
                               verbose=0)
     model.fit(tr_x, tr_y.ravel())
@@ -182,7 +188,7 @@ def reg_metrics(y, p):
     rp = round(np.corrcoef(y, p)[0,1], 3)
     mse = metrics.mean_squared_error(y, p)
     rmse = round(np.sqrt(mse), 3)
-    rs = round(spearmanr(y, p)[0], 3) 
+    rs = round(spearmanr(y, p)[0], 3)
     sd = round(np.sqrt(sum((p-y)**2)/(len(y)-2.0)), 3)
     return [rp, rs, sd, rmse]
 #-------------------------------------------------------------------------------
