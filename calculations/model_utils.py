@@ -142,7 +142,6 @@ def train_xgb(model_params, tr_x, tr_y, pred_task):
     elif pred_task == 'classification':
         param['eval_metric'] = 'auc'
         param['objective'] = 'binary:logistic'
-    #print(param)
     model = xgb.train(param, dtrain, num_boost_round=n_trees, verbose_eval=50)
     return model
 #-------------------------------------------------------------------------------
@@ -151,6 +150,8 @@ def train_sk_lm(model_params, tr_x, tr_y):
     model.fit(tr_x, tr_y.ravel())
     return model
 def train_sk_svm(model_params, tr_x, tr_y):
+    model = svm.SVC()
+def train_sk_kmm(model_params, tr_x, tr_y):
     model = svm.SVC()
 #-------------------------------------------------------------------------------
 def train_sk_rf(model_params, tr_x, tr_y):
