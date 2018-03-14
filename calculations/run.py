@@ -17,26 +17,23 @@ import multiprocessing
 # Set descriptors based on sf selection
 #
 def set_descriptors(sfname):
-    if sfname in ['bt-score', 'bt-screen', 'bt-dock']:
-      return ['xscore', 'affiscore', 'rfscore', 'gold',
-                        'repast', 'smina', 'chemgauss', 'autodock41',
-                        'ligscore', 'dsx', 'cyscore', 'padel',
-                        'nnscore', 'retest', 'ecfp', 'dpocket']
+    if sfname in ['bt-score', 'bt-screen', 'bt-dock', 'svm', 'mars', 'rf']:
+      return ['rfscore', 'affiscore', 'xscore']
     elif sfname == 'rf-score':
-      return ['rfscore']
+      return ['rfscore', 'affiscore', 'xscore']
     elif sfname == 'x-score':
-      return ['xscore']
+      return ['rfscore', 'affiscore', 'xscore']
 
 #
 # Get the results for a given SF and task
 #
-def run_results(scoring_fname, task_name, num_complexes):
+def run_results(scoring_fname, task_name, num_complexes, folder_pref=''):
     sfname = scoring_fname.lower()
     task = task_name.lower()
     verbose = True
     n_cpus = None
-    preds_ofname = 'prediction_results.csv'
-    perf_ofname = 'performance_results.csv'
+    preds_ofname = 'results/prediction_results_'+ scoring_fname + folder_pref + '.csv'
+    perf_ofname = 'results/performance_results_'+ scoring_fname + folder_pref + '.csv'
 
     # Descriptors to use
     descriptor_sets = set_descriptors(sfname)
@@ -71,10 +68,6 @@ def run_results(scoring_fname, task_name, num_complexes):
     print(performance.to_string(index=False))
 
     if verbose:
-      print('Writing predictions to ' + preds_ofname)
-    predictions.to_csv(preds_ofname, index=False)
-
-    if verbose:
       print('Writing performance statistics to ' + perf_ofname)
     performance.to_csv(perf_ofname, index=False)
 
@@ -82,7 +75,12 @@ def run_results(scoring_fname, task_name, num_complexes):
 # main function
 #
 def main():
-    run_results('bt-score', 'score', 200)
+    # get results for number of training set less than 3250
+    for num in range(1, 33):
+        training_data_size = num * 100
+        for sf in ['svm', 'bt-score', 'rf-score', 'mars', 'x-score']:
+            folder_pref = '_XAR'
+            run_results(sf, 'score', training_data_size,  folder_pref)
 
 #
 # Run Main Functions

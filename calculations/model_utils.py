@@ -4,23 +4,24 @@ import os
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from pyearth import Earth
 from sklearn import metrics
 from scipy.stats import spearmanr
 from vs_metrics import compute_docking_power, compute_screening_power
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn import svm
-from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import LabelEncoder
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsClassifier
 
 import timeit
 import random
 #-------------------------------------------------------------------------------
 def train_test_model(task, sf_name, tr_d, ts_d, model_params, num_complexes=3000):
     pred_task = 'classification' if sf_name == 'bt-screen' else 'regression'
-
+    print(tr_d)
     # shuffle training data
     tr_d = shuffle_data(tr_d, sf_name,num_complexes)
-    print(tr_d)
     #select values from shuffled trainig data hash
     tr_grp_id = tr_d['grp_ids'].values
     #gather cluster values
@@ -50,14 +51,11 @@ def train_test_model(task, sf_name, tr_d, ts_d, model_params, num_complexes=3000
     if sf_name in ['bt-score', 'bt-dock', 'bt-screen']:
         model = train_xgb(model_params, tr_x, tr_y, pred_task)
         ts_p = test_xgb(model, ts_x)
-    elif sf_name == 'knn':
-        model = train_xgb(model_params, tr_x, tr_y, pred_task)
-        ts_p = test_xgb(model, ts_x)
-    elif sf_name == 'rf':
-        model = train_sk_rf(model_params, tr_x, tr_y)
+    elif sf_name == 'mars':
+        model = train_sk_mars(model_params, tr_x, tr_y, pred_task)
         ts_p = test_sk_models(model, ts_x)
     elif sf_name == 'svm':
-        model = train_sk_rf(model_params, tr_x, tr_y)
+        model = trains_sk_svm(model_params, tr_x, tr_y, pred_task)
         ts_p = test_sk_models(model, ts_x)
     elif sf_name == 'rf-score':
         model = train_sk_rf(model_params, tr_x, tr_y)
@@ -174,15 +172,33 @@ def train_xgb(model_params, tr_x, tr_y, pred_task):
         param['objective'] = 'binary:logistic'
     model = xgb.train(param, dtrain, num_boost_round=n_trees, verbose_eval=50)
     return model
+
 #-------------------------------------------------------------------------------
 def train_sk_lm(model_params, tr_x, tr_y):
     model = LinearRegression()
     model.fit(tr_x, tr_y.ravel())
     return model
-def train_sk_svm(model_params, tr_x, tr_y):
-    model = svm.SVC()
-def train_sk_kmm(model_params, tr_x, tr_y):
-    model = svm.SVC()
+
+#
+# SVM model
+#
+def trains_sk_svm(model_params, tr_x, tr_y, pred_task):
+    n_cpus = model_params['n_cpus']
+    model = SVR(C=1.0, epsilon=0.25, gamma=.031)
+    model.fit(tr_x, tr_y.ravel())
+    return model
+
+#
+# K Nearest neighbors
+#
+def train_sk_mars(model_params, tr_x, tr_y, pred_task):
+    # using 15 because in paper
+    n_cpus = model_params['n_cpus']
+
+    model = Earth(max_degree=1, penalty=6)
+    model.fit(tr_x, tr_y)
+    return model
+
 #-------------------------------------------------------------------------------
 def train_sk_rf(model_params, tr_x, tr_y):
     n_tr_x = tr_x.shape[0]
@@ -202,11 +218,13 @@ def train_sk_rf(model_params, tr_x, tr_y):
                               verbose=0)
     model.fit(tr_x, tr_y.ravel())
     return model
+
 #-------------------------------------------------------------------------------
 def test_xgb(model, ts_x):
     ts_x = xgb.DMatrix(ts_x.copy())
     preds = model.predict(ts_x)
     return preds
+
 #-------------------------------------------------------------------------------
 def test_sk_models(model, ts_x, proba=False):
     if proba and hasattr(model, 'predict_proba'):

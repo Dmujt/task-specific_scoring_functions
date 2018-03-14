@@ -3,3 +3,4 @@ Scipy==0.18.1
 Pandas==0.18.1
 Scikit-learn==0.18.1
 XGBoost==0.6a1
+-e git+git://github.com/scikit-learn-contrib/py-earth.git#egg=Package
