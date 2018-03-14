@@ -79,7 +79,7 @@ def main():
     for num in [500, 1000, 1500, 2000, 2500, 3000, 3250]:
         for sf in ['svm', 'bt-score', 'rf-score', 'mars', 'x-score']:
             folder_pref = '_X_' + str(num)
-            run_results(sf, 'score', training_data_size,  folder_pref)
+            run_results(sf, 'score', num,  folder_pref)
 
 #
 # Run Main Functions
