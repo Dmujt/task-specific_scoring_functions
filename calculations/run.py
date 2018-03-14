@@ -67,7 +67,6 @@ def run_results(scoring_fname, task_name, num_complexes):
 
     predictions, performance = train_test_model(task, sfname, train, test, model_params, num_complexes)
 
-'''
     print('\nPerformance of %s on the %sing task:'%(sfname, task))
     print(performance.to_string(index=False))
 
@@ -78,7 +77,6 @@ def run_results(scoring_fname, task_name, num_complexes):
     if verbose:
       print('Writing performance statistics to ' + perf_ofname)
     performance.to_csv(perf_ofname, index=False)
-'''
 
 #
 # main function
