@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 #-------------------------------------------------------------------------------
-def read_plc_data(task, descriptor_sets, rem_y=False, 
+def read_plc_data(task, descriptor_sets, rem_y=False,
                   data_path='./data/',
-                  lco='ltco', cluster_id=90, 
+                  lco='ltco', cluster_id=90,
                   verbose=False):
 
     """Reads protein-ligand complex features and labels.
@@ -17,22 +17,22 @@ def read_plc_data(task, descriptor_sets, rem_y=False,
         lco: The leave cluster out strategy. LTCO for leave-target-clusters-out
              and LLCO for leave-ligand-clusters-out
         cluster_id: The clustering ID. For LTCO, it is the BLAST similarity
-                    cutoff value of 90% (cluster_id=90). 
-                    For LLCO, it is the number of clusters generated based on 
+                    cutoff value of 90% (cluster_id=90).
+                    For LLCO, it is the number of clusters generated based on
                     the pair-wise Euclidean distance between ligands described
                     by the 740+ PaDEL descriptors. We generate 100 ligand clusters
                     and therefore cluster_id=100 when lco=LLCO.
     Returns:
         A pandas dataframe with:
-        * descriptors from the descriptor_sets (i.e., the independent variables X). 
-        * 'label' for the dependent variable which is binding affinity 
+        * descriptors from the descriptor_sets (i.e., the independent variables X).
+        * 'label' for the dependent variable which is binding affinity
            when task='score', binary activity label (1 or 0) when task='screen',
            and the ligands's pose distance from the native confirmation in terms of RMSD
-           when task='dock'. 
+           when task='dock'.
         * 'grp_ids' which are complex PDB codes.
-        * 'clstr_ids' which indicates the target or ligands cluster of each complex in grp_ids 
+        * 'clstr_ids' which indicates the target or ligands cluster of each complex in grp_ids
     """
-    
+
     grp_ids = None
     clstr_ids = None
     X = None
@@ -62,12 +62,8 @@ def read_plc_data(task, descriptor_sets, rem_y=False,
         ds_fname = os.path.join(data_path, descriptor_set + '.csv')
         ds_fname_gzip = ds_fname + '.gzip'
         if os.path.exists(ds_fname):
-            if verbose:
-                print('Now reading: %s'%(ds_fname))
             x_ds = pd.read_csv(ds_fname)
         elif os.path.exists(ds_fname_gzip):
-            if verbose:
-                print('Now reading: %s'%(ds_fname_gzip))
             x_ds = pd.read_csv(ds_fname_gzip, compression='gzip')
         else:
             print('ERROR: UNABLE TO FIND ANY OF:')
@@ -87,19 +83,19 @@ def read_plc_data(task, descriptor_sets, rem_y=False,
     return [Xy_grps, ftrs_formula]
 #-------------------------------------------------------------------------------
 def get_short_dsname(l_dsname):
-    ls_dsname_dic = {'affiscore': 'a', 'autodock': 'u', 'autodock2': 'U', 
+    ls_dsname_dic = {'affiscore': 'a', 'autodock': 'u', 'autodock2': 'U',
                     'autodock41': 'U',
-                    'blast_protein': 'b', 'blast80_protein': 'b', 
-                    'blast': 'b', 'blast_protein_extended': 'B', 
+                    'blast_protein': 'b', 'blast80_protein': 'b',
+                    'blast': 'b', 'blast_protein_extended': 'B',
                     'repast': 'b',
-                    'chemgauss': 'h', 'cyscore': 'c', 'dpocket': 'f', 
-                    'dsx': 'd', 'gold': 'g', 'ligscore': 'l', 
-                    'nnscore': 'n', 'padel': 'p', 'ecfp': 'e', 
-                    'rfscore': 'r', 'rfscore_original': 'r', 
-                    'rfscore_standard': 'r', 'rfscore_extended': 'R', 
-                    'rfscore_xExtended': 'R', 'smina': 's', 'tmalign': 't', 
+                    'chemgauss': 'h', 'cyscore': 'c', 'dpocket': 'f',
+                    'dsx': 'd', 'gold': 'g', 'ligscore': 'l',
+                    'nnscore': 'n', 'padel': 'p', 'ecfp': 'e',
+                    'rfscore': 'r', 'rfscore_original': 'r',
+                    'rfscore_standard': 'r', 'rfscore_extended': 'R',
+                    'rfscore_xExtended': 'R', 'smina': 's', 'tmalign': 't',
                     'tmalign_protein': 't', 'tmalign_protein_extended': 'T',
-                    'retest': 't', 
+                    'retest': 't',
                     'xscore': 'x', 'zernike': 'z', 'sda3': 'S'}
     s_dsname = None
     if l_dsname.lower() in ls_dsname_dic:

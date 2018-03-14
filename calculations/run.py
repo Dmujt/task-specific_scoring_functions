@@ -30,9 +30,9 @@ def set_descriptors(sfname):
 #
 # Get the results for a given SF and task
 #
-def run_results(scoring_fname, task_name):
+def run_results(scoring_fname, task_name, num_complexes):
     sfname = scoring_fname.lower()
-    task = task.lower()
+    task = task_name.lower()
     verbose = True
     n_cpus = None
     preds_ofname = 'prediction_results.csv'
@@ -64,9 +64,10 @@ def run_results(scoring_fname, task_name):
     if ((sfname in ['rf-score', 'x-score']) or (sfname == 'bt-score' and task != 'score')):
       train = get_ba_data(train, task)
 
-'''
-    predictions, performance = train_test_model(task, sfname, train, test, model_params)
 
+    predictions, performance = train_test_model(task, sfname, train, test, model_params, num_complexes)
+
+'''
     print('\nPerformance of %s on the %sing task:'%(sfname, task))
     print(performance.to_string(index=False))
 
@@ -83,7 +84,7 @@ def run_results(scoring_fname, task_name):
 # main function
 #
 def main():
-    run_results('bt-score', 'score')
+    run_results('bt-score', 'score', 200)
 
 #
 # Run Main Functions

@@ -15,33 +15,61 @@ from sklearn.neighbors import NearestNeighbors
 import timeit
 import random
 #-------------------------------------------------------------------------------
-def train_test_model(task, sf_name, tr_d, ts_d, model_params):
+def train_test_model(task, sf_name, tr_d, ts_d, model_params, num_complexes=3000):
     pred_task = 'classification' if sf_name == 'bt-screen' else 'regression'
 
-    tr_d = shuffle_data(tr_d, sf_name)
+    # shuffle training data
+    tr_d = shuffle_data(tr_d, sf_name,num_complexes)
+    print(tr_d)
+    #select values from shuffled trainig data hash
     tr_grp_id = tr_d['grp_ids'].values
+    #gather cluster values
     tr_clstr_id = tr_d['clstr_ids'].values
+
+    #remove header from dataframe
     tr_x_df = tr_d.drop(['label', 'grp_ids', 'clstr_ids', 'ba'], axis=1)
+
+    #get only the feature values
     tr_x = tr_x_df.values
+    #get the feature names and convert them to a array
     ftr_names = tr_x_df.columns.tolist()
+
+    #get the training data values of BA
     tr_y = tr_d['label'].values
+
+    #same but with test
     ts_grp_id = ts_d['grp_ids'].values
     ts_clstr_id = ts_d['clstr_ids'].values
     predictions_df = ts_d[['grp_ids', 'label']].copy()
     ts_x = ts_d.drop(['label', 'grp_ids', 'clstr_ids', 'ba'], axis=1).values
     ts_y = ts_d['label'].values
+    #time init
     start_time = timeit.default_timer()
+
+    #select model to train and test
     if sf_name in ['bt-score', 'bt-dock', 'bt-screen']:
         model = train_xgb(model_params, tr_x, tr_y, pred_task)
         ts_p = test_xgb(model, ts_x)
+    elif sf_name == 'knn':
+        model = train_xgb(model_params, tr_x, tr_y, pred_task)
+        ts_p = test_xgb(model, ts_x)
+    elif sf_name == 'rf':
+        model = train_sk_rf(model_params, tr_x, tr_y)
+        ts_p = test_sk_models(model, ts_x)
+    elif sf_name == 'svm':
+        model = train_sk_rf(model_params, tr_x, tr_y)
+        ts_p = test_sk_models(model, ts_x)
     elif sf_name == 'rf-score':
         model = train_sk_rf(model_params, tr_x, tr_y)
         ts_p = test_sk_models(model, ts_x)
     elif sf_name == 'x-score':
         model = train_sk_lm(model_params, tr_x, tr_y)
         ts_p = test_sk_models(model, ts_x)
+
     end_time = timeit.default_timer()
     ts_p_proba = ts_p.copy()
+
+
     if pred_task == 'classification' and len(np.unique(ts_p)) > 2:
         ts_p[ts_p>0.5] = 1
         ts_p[ts_p<=.5] = 0
@@ -53,6 +81,7 @@ def train_test_model(task, sf_name, tr_d, ts_d, model_params):
     predictions_df['predicted_label'] = ts_p
     predictions_df.columns = ['complex_id', 'true_label', 'predicted_label']
     perf_df = None
+
     if task == 'score':
         performance = [RpAuc, RsTpr, SdTnr, RmseAcc]
         #print('Rp = %.3f, Rs = %.3f, SD = %.3f, RMSE = %.3f'%(RpAuc, RsTpr, SdTnr, RmseAcc))
@@ -77,8 +106,9 @@ def train_test_model(task, sf_name, tr_d, ts_d, model_params):
     if perf_df is not None:
         perf_df[['N_Training', 'N_Test', 'N_Descriptors']] = perf_df[['N_Training', 'N_Test', 'N_Descriptors']].astype(int)
     return [predictions_df, perf_df]
+
 #-------------------------------------------------------------------------------
-def shuffle_data(train, sfname):
+def shuffle_data(train, sfname, num_complexes):
     """
     This function has been written long time ago
     and it is more complex than it needs to be.
@@ -89,10 +119,8 @@ def shuffle_data(train, sfname):
     our paper. Otherwise, we could replace it with
     one line of code.
     """
-    mx_tr_size_dic = {'rf-score': 3000, 'x-score': 3000,
-                      'bt-score': 3000, 'bt-screen': 20000,
-                      'bt-dock': 300000}
-    mx_tr_size = mx_tr_size_dic[sfname]
+
+    mx_tr_size = num_complexes
     random.seed(1)
     np.random.seed(1)
     train = train.reindex(np.random.permutation(train.index))
@@ -104,6 +132,8 @@ def shuffle_data(train, sfname):
       #train = train.iloc[np.random.choice(train.shape[0], mx_tr_size, replace=False)]
       train = train.iloc[tr_idxs]
     return train
+
+
 #-------------------------------------------------------------------------------
 def is_task_specific(task, sf_name):
     res = False
