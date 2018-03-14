@@ -18,11 +18,11 @@ import multiprocessing
 #
 def set_descriptors(sfname):
     if sfname in ['bt-score', 'bt-screen', 'bt-dock', 'svm', 'mars', 'rf']:
-      return ['xscore']
+      return ['xscore','affiscore', 'rfscore']
     elif sfname == 'rf-score':
-      return ['xscore']
+      return ['xscore','affiscore', 'rfscore']
     elif sfname == 'x-score':
-      return [ 'xscore']
+      return ['xscore','affiscore', 'rfscore']
 
 #
 # Get the results for a given SF and task
@@ -78,7 +78,7 @@ def main():
     # get results for number of training set less than 3250
     for num in [500, 1000, 1500, 2000, 2500, 3000, 3250]:
         for sf in ['svm', 'bt-score', 'rf-score', 'mars', 'x-score']:
-            folder_pref = '_X_' + str(num)
+            folder_pref = '_XAR_' + str(num)
             run_results(sf, 'score', num,  folder_pref)
 
 #
